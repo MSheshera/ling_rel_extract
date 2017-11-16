@@ -1,0 +1,10 @@
+# Ignore everything
+#*/
+*.idea
+*.pyc 
+
+# Except.
+!.README.md
+!.gitignore
+!Makefile
+!pre_process/
