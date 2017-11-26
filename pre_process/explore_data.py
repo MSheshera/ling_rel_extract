@@ -12,6 +12,9 @@ import re
 # My imports.
 import data_utils as du
 
+# Write unicode to stdout.
+sys.stdout = codecs.getwriter('utf-8')(sys.stdout)
+
 
 def count_rel_negative(fname):
     """
@@ -59,7 +62,7 @@ def count_negatives(dataset_path):
 def count_relation_overlap(dataset_path):
     """
     Count how many of the entity pairs occur in multiple relations.
-    :param dataset_path:
+    :param dataset_path: unicode; full path to the dir with all rel jsons.
     :return:
     """
     total_data_samples = 0
@@ -78,6 +81,76 @@ def count_relation_overlap(dataset_path):
     print('total entity pairs: {:d}'.format(len(entity_pair)))
 
 
+def play_degree_objs(dataset_path):
+    """
+    Check if every case of degree has a the object clearly marked out.
+    Generally function to play around with these degree objects.
+    :param dataset_path: unicode; full path to the dir with all rel jsons.
+    :return:
+    """
+    total_data_samples = 0
+    fnames = ['education-degree.json']
+    # Non-greedily match and replace:
+    # https://stackoverflow.com/q/2403122/3262406
+    # https://stackoverflow.com/a/6711631/3262406
+    ed_pat_1 = re.compile(r'\(\(NAM:(.*?)\)\)')
+    ed_pat_2 = re.compile(r'\(\(NOM:(.*?)\)\)')
+    resolved_sample = 0
+    for fname in fnames:
+        print(fname)
+        fname = os.path.join(dataset_path, fname)
+        with codecs.open(fname, 'r', 'utf-8') as fp:
+            for data_json in du.read_json(fp):
+                if data_json != {}:
+                    total_data_samples += 1
+                    orstring = data_json['evidences'][0]['snippet']
+                    newstring, obj_resolved_1 = ed_pat_1.subn(r'((OBJ:\1))', orstring)
+                    newstring, obj_resolved_2 = ed_pat_2.subn(r'((OBJ:\1))', newstring)
+                    if obj_resolved_1 or obj_resolved_2:
+                        print(newstring)
+                        print()
+                        resolved_sample += 1
+    print('total education-degree samples: {:d}'.format(total_data_samples))
+    print('total objs resolved: {:d}'.format(resolved_sample))
+
+
+def play_date_objs(dataset_path):
+    """
+    Play around with the data objects.
+    :param dataset_path:
+    :return:
+    """
+    total_data_samples = 0
+    fnames = ['date_of_birth.json']
+    resolved_sample = 0
+    for fname in fnames:
+        print(fname)
+        fname = os.path.join(dataset_path, fname)
+        with codecs.open(fname, 'r', 'utf-8') as fp:
+            for data_json in du.read_json(fp):
+                if data_json != {}:
+                    total_data_samples += 1
+                    orstring = data_json['evidences'][0]['snippet']
+                    objstr = data_json['obj']
+                    # Some dates start with zeros. Get rid of that.
+                    try:
+                        objstr = unicode(int(objstr))
+                    except ValueError:
+                        objstr = objstr
+                    date_pat = re.compile(r'({:s})'.format(objstr))
+                    newstring, obj_resolved = date_pat.subn(r'((OBJ: \1))',
+                                                              orstring)
+                    if not obj_resolved:
+                        print(newstring)
+                        print(objstr)
+                        print()
+                        resolved_sample += 1
+    print('total date_of_birth samples: {:d}'.format(total_data_samples))
+    print('total objs resolved: {:d}'.format(resolved_sample))
+
+
 if __name__ == '__main__':
     #count_negatives(sys.argv[1])
-    count_relation_overlap(sys.argv[1])
+    #count_relation_overlap(sys.argv[1])
+    #play_degree_objs(sys.argv[1])
+    play_date_objs(sys.argv[1])
