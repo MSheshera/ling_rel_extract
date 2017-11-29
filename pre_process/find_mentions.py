@@ -121,9 +121,7 @@ def find_namedent_mentions(data_dict, doc_ents, readable_ent, type_str, partial_
     # Form patterns and escape random spurious chars you cant control.
     ent_pat = re.compile(r'({:s})'.format(re.escape(ent_str)))
     # In case NER misses it, get whatever matches with a direct string match.
-    # TODO: At present my ent_mention order isnt in text order. This needs to
-    # be fixed somehow but its painful to do it. dk if its worth it. --medpri
-    ent_mentions = ent_pat.findall(orstring)
+    ent_mentions = [(m.start(0),m.end(0),m.group(0)) for m in ent_pat.finditer(orstring)]
     newstring, dir_resolved = ent_pat.subn(r'(({:s}))'.format(type_str), orstring)
     # Next match partially with named entities.
     par_resolved = 0
@@ -135,14 +133,19 @@ def find_namedent_mentions(data_dict, doc_ents, readable_ent, type_str, partial_
         match_score = fuzz.partial_ratio(ent, ent_str)
         if match_score > partial_ratio_thresh:
             ent_pat = re.compile(r'({:s})'.format(re.escape(ent)))
-            ent_mentions.extend(ent_pat.findall(newstring))
+            ent_mentions.extend([(m.start(0), m.end(0), m.group(0)) for m in ent_pat.finditer(newstring)])
             newstring, ret_resolved = ent_pat.subn(r'(({:s}))'.format(type_str),
                                                    newstring)
             par_resolved += ret_resolved
     # Only replace if resolved.
     if dir_resolved or par_resolved:
         data_dict['evidences'][0]['snippet'] = newstring
-        data_dict['{:s}_mentions'.format(type_str)] = ent_mentions
+        # Sort on the start index of the entity mentions. This isnt perfect
+        # since some of the indexes come from newstring. But im overlooking that
+        # for now.
+        # TODO: Account for newstring and orstring indexes. --lowpri
+        ent_mentions = sorted(ent_mentions, key=lambda elm: elm[0])
+        data_dict['{:s}_mentions'.format(type_str)] = [m[2] for m in ent_mentions]
         resolved = True
         return resolved
     return resolved
