@@ -30,7 +30,7 @@ def count_rel_negative(fname):
             if data_json != {}:
                 judgement = collections.Counter([j['judgment'] for j in
                                                  data_json['judgments']])
-                # print(dict(judgement))
+                print(dict(judgement))
                 # Count as positive example if \geq half the people people
                 # say yes.
                 judgement = 'yes' if judgement['yes']/float(sum(
@@ -150,7 +150,13 @@ def play_date_objs(dataset_path):
 
 
 if __name__ == '__main__':
-    #count_negatives(sys.argv[1])
-    #count_relation_overlap(sys.argv[1])
-    #play_degree_objs(sys.argv[1])
-    play_date_objs(sys.argv[1])
+    if sys.argv[1] == 'count_neg':
+        count_negatives(sys.argv[2])
+    elif sys.argv[1] == 'count_overlap':
+        count_relation_overlap(sys.argv[2])
+    elif sys.argv[1] == 'play_deg':
+        play_degree_objs(sys.argv[2])
+    elif sys.argv[1] == 'date_obj':
+        play_date_objs(sys.argv[2])
+    else:
+        sys.stderr.write('Unknown action. :/')
