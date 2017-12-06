@@ -2,7 +2,7 @@
 action=$1
 which_processed=$2
 if [[ $action == '' ]]; then
-    echo "Must specify action: split/vlstm"
+    echo "Must specify action: split/vlstm/slstm"
     exit 1
 fi
 if [[ $which_processed == '' ]] && [[ $action == 'split' ]]; then
@@ -20,7 +20,7 @@ out_path="$CUR_PROJ_ROOT/processed/grec-${action}"
 mkdir -p $out_path
 if [[ $action == 'split' ]]; then
     in_path="$CUR_PROJ_ROOT/processed/$which_processed"
-elif [[ $action == 'vlstm' ]]; then
+elif [[ $action == 'vlstm' ]] || [[ $action == 'slstm' ]]; then
     in_path="$CUR_PROJ_ROOT/processed/grec-split"
 fi
 
