@@ -7,8 +7,12 @@ from __future__ import unicode_literals
 from __future__ import print_function
 import os, sys, argparse
 import codecs, json
-import re, random
+import re, random, time
 import collections
+
+# Tokenization and stuff.
+from nltk.tokenize.punkt import PunktSentenceTokenizer
+from nltk.tokenize import word_tokenize
 
 # My imports.
 import data_utils as du
@@ -184,6 +188,42 @@ def control_tdt_split(mentionfound_path, out_path):
         print('Wrote: {:s}'.format(split_fname))
 
 
+############################################
+#   Form the train set for Vanilla LSTM    #
+############################################
+def process_splits(in_path, out_path):
+    """
+    For a given split process all the examples in it.
+    :return:
+    """
+    obj_pat = re.compile(r'\(\(OBJ\)\)')
+    sub_pat = re.compile(r'\(\(SUB\)\)')
+    for split_str in ['train', 'dev', 'test']:
+        in_split_fname = os.path.join(in_path, split_str) + '.json'
+        out_split_fname = os.path.join(out_path, split_str) + '.json'
+        out_split_file = codecs.open(out_split_fname, u'w', u'utf-8')
+        print('Processing: {:s}'.format(in_split_fname))
+        start = time.time()
+        with codecs.open(in_split_fname, 'r', 'utf-8') as fp:
+            for data_dict in du.read_json(fp):
+                out_dict = {}
+                text = data_dict['evidences'][0]['snippet']
+                replaced, _ = obj_pat.subn(string=text, repl='target_object')
+                replaced, _ = sub_pat.subn(string=replaced, repl='target_subject')
+                # Tokenize text.
+                word_li = word_tokenize(replaced)
+                out_dict['text'] = ' '.join(word_li)
+                out_dict['label'] = data_dict['int_mapped_rel']
+                out_dict['readable_sub'] = data_dict['readable_sub']
+                out_dict['readable_obj'] = data_dict['readable_obj']
+                proc_jsons = json.dumps(out_dict, ensure_ascii=False)
+                out_split_file.write(proc_jsons + '\n')
+        out_split_file.close()
+        end = time.time()
+        print('Wrote: {:s}'.format(out_split_fname))
+        print('Took: {:4.4f}s'.format(end-start))
+
+
 def main():
     """
     Parse command line arguments and call all the above routines.
@@ -194,7 +234,7 @@ def main():
                                        help=u'The action to perform.')
 
     # Action to make the general train/dev/test split.
-    make_tdt_split = subparsers.add_parser(u'make_split')
+    make_tdt_split = subparsers.add_parser(u'split')
     make_tdt_split.add_argument(u'-i', u'--in_path',
                                 required=True,
                                 help=u'The GREC mentionfound dataset. Would work'
@@ -204,7 +244,7 @@ def main():
                                 help=u'Path to which splits should get written.')
 
     # Action to make the processed dataset that mine and Katies code reads.
-    make_glstm_dataset = subparsers.add_parser(u'make_glstm')
+    make_glstm_dataset = subparsers.add_parser(u'vlstm')
     make_glstm_dataset.add_argument(u'-i', u'--in_path', required=True,
                                     help=u'Directory with the train/dev/test '
                                          u'split jsons.')
@@ -213,11 +253,15 @@ def main():
                                          u'splits, should be written.')
     cl_args = parser.parse_args()
 
-    if cl_args.subcommand == 'make_split':
+    if cl_args.subcommand == 'split':
         # Dont want to overwrite existing files by same name. :/
         assert(cl_args.in_path != cl_args.out_path)
         control_tdt_split(mentionfound_path=cl_args.in_path,
                           out_path=cl_args.out_path)
+    elif cl_args.subcommand == 'vlstm':
+        # Dont want to overwrite existing files by same name. :/
+        assert (cl_args.in_path != cl_args.out_path)
+        process_splits(in_path=cl_args.in_path, out_path=cl_args.out_path)
     else:
         sys.stderr.write('Unknown action.\n')
 
