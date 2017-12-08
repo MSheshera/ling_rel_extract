@@ -61,21 +61,18 @@ def pad_sort_data(int_mapped_docs, doc_labels):
                 'lengths': list(int); lengths of all sequences in X.
                 'sorted_indices': list(int); rearranging X with this gives the
                     original unsorted order.
-                'sorted_docrefs': Torch Tensor; ints saying which seq in X came
+                'sorted_docrefs': list(int); ints saying which seq in X came
                     from which document. ints in range [0, len(int_mapped_docs)]
-        sorted_refed_labels: labels for each seq in X.
+        doc_labels: torch Tensor; labels for each document in X. [shorter than X]
     """
     assert(len(int_mapped_docs) == len(doc_labels))
     doc_ref = []
-    refed_labels = []
-    for ref, (int_mapped_sents, label) in enumerate(zip(int_mapped_docs,
-                                                      doc_labels)):
-        doc_ref.extend([ref]*len(int_mapped_sents))
-        refed_labels.extend([label]*len(int_mapped_sents))
+    for ref, doc_sents in enumerate(int_mapped_docs):
+        doc_ref.extend([ref]*len(doc_sents))
 
     # Make the list of list of lists a list of lists.
     int_mapped_sents = [val for sublist in int_mapped_docs for val in sublist]
-    assert(len(refed_labels) == len(int_mapped_sents) == len(doc_ref))
+    assert(len(int_mapped_sents) == len(doc_ref))
 
     # Get sorted indices.
     sorted_indices = sorted(range(len(int_mapped_sents)),
@@ -87,26 +84,22 @@ def pad_sort_data(int_mapped_docs, doc_labels):
     # Make the sentences into tensors sorted by length and place then into the
     # padded tensor.
     sorted_doc_ref = []
-    sorted_refed_labels = []
     sorted_lengths = []
     for i, sent_i in enumerate(sorted_indices):
         tt = torch.LongTensor(int_mapped_sents[sent_i])
         lenght = tt.size(0)
         X_exp_padded[i, 0:lenght] = tt
-        # Rearrange the doc refs and labels as well.
+        # Rearrange the doc refs.
         sorted_doc_ref.append(doc_ref[sent_i])
-        sorted_refed_labels.append(refed_labels[sent_i])
         # Make this because packedpadded seq asks for it.
         sorted_lengths.append(lenght)
 
-    sorted_doc_ref = torch.LongTensor(sorted_doc_ref)
-    sorted_refed_labels = torch.LongTensor(sorted_refed_labels)
-
+    doc_labels = torch.LongTensor(doc_labels)
     X_dict = {'X': X_exp_padded,  # Torch Tensor
               'lengths': sorted_lengths,  # list(int)
               'sorted_indices': sorted_indices,  # list(int)
-              'sorted_docrefs': sorted_doc_ref}  # Torch Tensor.
-    return X_dict, sorted_refed_labels
+              'sorted_docrefs': sorted_doc_ref}  # list(int)
+    return X_dict, doc_labels
 
 
 class Batcher():

@@ -47,25 +47,39 @@ class SentsLSTM(torch.nn.Module):
             self.hidden2pred = self.hidden2pred.cuda()
 
     def objective(self, batch_X, batch_y):
-        '''
-        forward pass
-        see https://discuss.pytorch.org/t/packedsequence-for-seq2seq-model/3907/2 for how to pack and unpack
-
-        must pass in a batched group of X with padded X's and lenghts
-        '''
+        """
+        Pass through a forward pass and return the loss.
+        :param batch_X: dict of the form:
+            {'X': Torch Tensor; the padded and sorted-by-length sentence.
+            'lengths': list(int); lengths of all sequences in X.
+            'sorted_indices': list(int); rearranging X with this gives the
+                    original unsorted order.
+            'sorted_docrefs': list(int); ints saying which seq in X came
+                    from which document. ints in range [0, len(int_mapped_docs)]
+        :param batch_y: torch Tensor; labels for each document in X. [shorter than X]
+        :return: loss; torch Variable.
+        """
         X, lengths, doc_refs = batch_X['X'], batch_X['lengths'], \
                                batch_X['sorted_docrefs']
-        cur_batch_size = X.size(0)
+        num_docs, total_sents = batch_y.size(0), X.size(0)
         # Make initialized hidden and cell states.
-        h0 = torch.zeros(self.num_layers, cur_batch_size, self.hidden_dim)
-        c0 = torch.zeros(self.num_layers, cur_batch_size, self.hidden_dim)
+        h0 = torch.zeros(self.num_layers, total_sents, self.hidden_dim)
+        c0 = torch.zeros(self.num_layers, total_sents, self.hidden_dim)
+        # Make the doc masks.
+        doc_refs = np.array(doc_refs)
+        doc_masks = np.zeros((num_docs, total_sents, self.hidden_dim))
+        for ref in xrange(num_docs):
+            doc_masks[ref, doc_refs == ref, :] = 1
+        doc_masks = torch.FloatTensor(doc_masks)
+
         # Make all model variables to Variables and move to the GPU.
         h0, c0 = Variable(h0), Variable(c0)
         X, batch_y = Variable(X), Variable(batch_y)
+        doc_masks = Variable(doc_masks)
         if torch.cuda.is_available():
             h0, c0 = h0.cuda(), c0.cuda()
             X, batch_y = X.cuda(), batch_y.cuda()
-
+            doc_masks = doc_masks.cuda()
         # Pass forward.
         embeds = self.word_embeddings(X)
         dropped_embeds = self.in_drop(embeds)
@@ -73,9 +87,11 @@ class SentsLSTM(torch.nn.Module):
                                                          lengths,
                                                          batch_first=True)
         out, (hidden, cell) = self.lstm(packed, (h0, c0))
-        dropped_hidden = self.h2p_drop(hidden)
+        agg_hidden = torch.sum(hidden*doc_masks, dim=1)
+        dropped_hidden = self.h2p_drop(agg_hidden)
         scores = self.hidden2pred(dropped_hidden)
-        scores = scores.view(scores.size(1), scores.size(2))
+        print(scores.size())
+        #scores = scores.view(scores.size(1), scores.size(2))
         loss = self.criterion_ce(scores, batch_y)
         return loss
 
