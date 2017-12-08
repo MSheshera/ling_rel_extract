@@ -8,3 +8,4 @@
 !.gitignore
 !Makefile
 !pre_process/
+!models/
