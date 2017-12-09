@@ -1,22 +1,26 @@
+"""
+Call code from everywhere, read data, initialize model, train model and make
+sure training is doing something meaningful.
+"""
 from __future__ import unicode_literals
 from __future__ import print_function
 import argparse, os, sys
-import math, time, json, codecs, pickle
+import math, time, codecs
 
-import numpy as np
-import torch
-
+import utils
 import model_utils as mu
 import sentslstm as slstm
-import train
+import trainer
+import evaluate
 
 # Write unicode to stdout.
 sys.stdout = codecs.getwriter('utf-8')(sys.stdout)
 
 
-def run_model(int_mapped_path, embedding_path, checkpoint_path=None, use_toy=True):
+def train_model(int_mapped_path, embedding_path, model_path,
+                result_path, use_toy=True):
     """
-
+    Read the int training and dev data, initialize and train the model.
     :return:
     """
     # np.random.seed(4186)
@@ -25,68 +29,45 @@ def run_model(int_mapped_path, embedding_path, checkpoint_path=None, use_toy=Tru
     #     torch.cuda.manual_seed(4186)
 
     # Load training and dev data.
-    if use_toy:
-        set_str = 'small'
-    else:
-        set_str = 'full'
-    train_path = os.path.join(int_mapped_path, 'train-im-{:s}.json'.format(set_str))
-    with open(train_path, 'r') as fp:
-        X_train, y_train = json.load(fp)  # l of l of l, l
-    dev_path = os.path.join(int_mapped_path, 'dev-im-{:s}.json'.format(set_str))
-    with open(dev_path, 'r') as fp:
-        X_dev, y_dev = json.load(fp)
-    map_path = os.path.join(int_mapped_path, 'word2idx-{:s}.json'.format(set_str))
-    with open(map_path, 'r') as fp:
-        word2idx = json.load(fp)
-    data = {'X_train': X_train, 'y_train': y_train,
-            'X_dev': X_dev, 'y_dev': y_dev}
+    X_train, y_train, X_dev, y_dev, X_test, y_test, word2idx = \
+        utils.load_intmapped_data(int_mapped_path, use_toy)
+    data = {'X_train': X_train,
+            'y_train': y_train,
+            'X_dev': X_dev,
+            'y_dev': y_dev}
 
-    testX, testy = X_dev[:10], y_dev[:10]
-    test_batcher = mu.Batcher(testX, testy)
-    X, y = test_batcher.full_batch()
     # Initialize model.
     model = slstm.SentsLSTM(word2idx, embedding_path, num_classes=6,
-                            max_batch_size=64, num_layers=1,
-                            embedding_dim=200, hidden_dim=50, dropout=0.3,
-                            cuda=torch.cuda.is_available())
-    print(model)
-    print(model.objective(X, y))
+                            num_layers=1, embedding_dim=200, hidden_dim=50,
+                            dropout=0.3)
+    # Initialize the trainer.
+    lstmtrainer = trainer.LSTMTrainer(
+        model=model, data=data, batcher=mu.Batcher, batch_size=16,
+        update_rule='adam', num_epochs=5, learning_rate=0.001, check_every=10,
+        print_every=1, model_path=model_path)
 
-
-    # # train the model
-    # trainer = train.LSTMTrainer(model=model, data=data, update_rule='adam',
-    #                             num_epochs=5, learning_rate=0.001,
-    #                             print_every=10, max_batch_size=64,
-    #                             checkpoint_path=checkpoint_path)
-    # trainer.train()
-    # loss_hist, dev_hist = trainer.loss_history, trainer.dev_score_history
+    # Train and save the best model to model_path.
+    lstmtrainer.train()
+    # Make predictions and evaluate.
+    data['X_test'] = X_test
+    data['y_test'] = y_test
+    everything = evaluate.make_predictions(data=data, batcher=mu.Batcher,
+                                           model=model,
+                                           model_name=lstmtrainer.model_name,
+                                           result_path=result_path)
+    y_test_true, y_test_preds, y_dev_true, y_dev_preds, \
+        y_train_true, y_train_preds = everything
+    for split, true, pred in [('test', y_test_true, y_test_preds),
+                              ('dev', y_dev_true, y_dev_preds),
+                              ('train', y_train_true, y_train_preds)]:
+        print(split)
+        evaluate.evaluate_preds(true, pred)
 
 
 def main():
-    parser = argparse.ArgumentParser(description='PyTorch Vanilla LSTM binary')
-    parser.add_argument('--toy', action='store_true',
-                        help='if you want to use the toy data instead of real data')
-    parser.add_argument('--save', action='store_true',
-                    help='want to save the models')
-    # hyperparameters
-    parser.add_argument('--epochs', type=int, default=50,
-                    help='upper epoch limit')
-    parser.add_argument('--batch_size', type=int, default=50,
-                    help='batch size')
-    parser.add_argument('--lr', type=float, default=1e-3,
-                    help='learning rate for optimizer')
-    parser.add_argument('--dropout', type=float, default=0.5,
-                    help='droput')
-    parser.add_argument('--embed_dim', type=int, default=50,
-                    help='embedding dimension')
-    parser.add_argument('--hid_dim', type=int, default=50,
-                    help='hidden dimension')
-    # path to save to
-    parser.add_argument('--fname', type=str, default='stat',
-                    help='filename to save the statistics to')
-    args = parser.parse_args()
+    pass
 
 if __name__ == '__main__':
     #main()
-    run_model(int_mapped_path=sys.argv[2], embedding_path=sys.argv[1],
-              checkpoint_path=None, use_toy=True)
+    train_model(int_mapped_path=sys.argv[1], embedding_path=sys.argv[2],
+                model_path=sys.argv[3], result_path=sys.argv[4])
