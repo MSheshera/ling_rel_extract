@@ -1,3 +1,6 @@
+"""
+Define the model architecture and define forward and predict computations.
+"""
 from __future__ import print_function
 import sys, os, math, time
 import numpy as np
@@ -11,13 +14,11 @@ import model_utils as mu
 class SentsLSTM(torch.nn.Module):
     """
     Run an LSTM on each sentence of the passed paragraph, sum the sentence
-    representations and make a prediction.
+    representations and make a prediction.s
     """
-    def __init__(self, word2idx, embedding_path, num_classes=6, max_batch_size=64,
-                 num_layers=1, embedding_dim=200, hidden_dim=50, dropout=0.3,
-                 cuda=False):
-        super(SentsLSTM, self).__init__()  # need to inherit pytorch module
-        self.max_batch_size = max_batch_size
+    def __init__(self, word2idx, embedding_path, num_classes=6, num_layers=1,
+                 embedding_dim=200, hidden_dim=50, dropout=0.3):
+        super(SentsLSTM, self).__init__()
         self.hidden_dim = hidden_dim
         self.num_layers = num_layers
         self.num_classes = num_classes
@@ -56,12 +57,14 @@ class SentsLSTM(torch.nn.Module):
                     original unsorted order.
             'sorted_docrefs': list(int); ints saying which seq in X came
                     from which document. ints in range [0, len(int_mapped_docs)]
+            'num_docs': int; says how many docs there are.
         :param batch_y: torch Tensor; labels for each document in X. [shorter than X]
         :return: loss; torch Variable.
         """
-        X, lengths, doc_refs = batch_X['X'], batch_X['lengths'], \
-                               batch_X['sorted_docrefs']
-        num_docs, total_sents = batch_y.size(0), X.size(0)
+        X, lengths, doc_refs, num_docs = batch_X['X'], batch_X['lengths'], \
+                                         batch_X['sorted_docrefs'], \
+                                         batch_X['num_docs']
+        total_sents = X.size(0)
         # Make initialized hidden and cell states.
         h0 = torch.zeros(self.num_layers, total_sents, self.hidden_dim)
         c0 = torch.zeros(self.num_layers, total_sents, self.hidden_dim)
@@ -90,31 +93,59 @@ class SentsLSTM(torch.nn.Module):
         agg_hidden = torch.sum(hidden*doc_masks, dim=1)
         dropped_hidden = self.h2p_drop(agg_hidden)
         scores = self.hidden2pred(dropped_hidden)
-        print(scores.size())
-        #scores = scores.view(scores.size(1), scores.size(2))
         loss = self.criterion_ce(scores, batch_y)
         return loss
 
-    def var_to_numpy(self, pred):
-        # change to numpy
+    def predict(self, batch_X):
+        """
+        Make a forward pass and return predictions as a numpy array.
+        :param batch_X: dict of the form:
+            {'X': Torch Tensor; the padded and sorted-by-length sentence.
+            'lengths': list(int); lengths of all sequences in X.
+            'sorted_indices': list(int); rearranging X with this gives the
+                    original unsorted order.
+            'sorted_docrefs': list(int); ints saying which seq in X came
+                    from which document. ints in range [0, len(int_mapped_docs)]
+            'num_docs': int; says how many docs there are.
+        :return: preds: numpy array of size (num_docs, )
+        """
+        X, lengths, doc_refs, num_docs = batch_X['X'], batch_X['lengths'], \
+                                         batch_X['sorted_docrefs'],\
+                                         batch_X['num_docs']
+        total_sents = X.size(0)
+        # Make initialized hidden and cell states.
+        h0 = torch.zeros(self.num_layers, total_sents, self.hidden_dim)
+        c0 = torch.zeros(self.num_layers, total_sents, self.hidden_dim)
+        # Make the doc masks.
+        doc_refs = np.array(doc_refs)
+        doc_masks = np.zeros((num_docs, total_sents, self.hidden_dim))
+        for ref in xrange(num_docs):
+            doc_masks[ref, doc_refs == ref, :] = 1
+        doc_masks = torch.FloatTensor(doc_masks)
+
+        # Make all model variables to Variables and move to the GPU.
+        # Do pure inference, no caches stored.
+        h0, c0 = Variable(h0, volatile=True), Variable(c0, volatile=True)
+        X = Variable(X, volatile=True)
+        doc_masks = Variable(doc_masks, volatile=True)
         if torch.cuda.is_available():
-            pred = pred.cpu().data.numpy()
+            h0, c0 = h0.cuda(), c0.cuda()
+            X = X.cuda()
+            doc_masks = doc_masks.cuda()
+        # Pass forward. No dropout at test time.
+        embeds = self.word_embeddings(X)
+        packed = torch.nn.utils.rnn.pack_padded_sequence(embeds,
+                                                         lengths,
+                                                         batch_first=True)
+        out, (hidden, cell) = self.lstm(packed, (h0, c0))
+        agg_hidden = torch.sum(hidden * doc_masks, dim=1)
+        scores = self.hidden2pred(agg_hidden)
+        max_scores, preds = torch.max(scores, dim=1)
+
+        # Make numpy array and return.
+        if torch.cuda.is_available():
+            preds = preds.cpu().data.numpy()
         else:
-            pred = pred.data.numpy()
-        return pred
-
-    def predict(self, X):
-        # HARD PRECITIONS!
-        # run the forward pass of the network with learned parameters
-        pp = self.forward(X)
-        scores = F.log_softmax(pp)
-        _, pred = torch.max(scores, 1)  # take argmax
-        return self.var_to_numpy(pred)
-
-    def soft_pred(self, X):
-        # SOFT PREDICTIONS!
-        # run the forward pass of the network with learned parameters
-        pp = self.forward(X)
-        scores = F.softmax(pp)
-        pred = scores[:, 1]  # predicting the positive class!
-        return self.var_to_numpy(pred)
+            preds = preds.data.numpy()
+        assert(preds.shape[0] == num_docs)
+        return preds
