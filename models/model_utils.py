@@ -1,5 +1,5 @@
 """
-Miscellaneous utilities to used all over the place.
+Utilities to feed and initialize the models.
 """
 from __future__ import unicode_literals
 from __future__ import print_function
@@ -63,6 +63,7 @@ def pad_sort_data(int_mapped_docs, doc_labels):
                     original unsorted order.
                 'sorted_docrefs': list(int); ints saying which seq in X came
                     from which document. ints in range [0, len(int_mapped_docs)]
+                'num_docs': int; says how many docs there are.
         doc_labels: torch Tensor; labels for each document in X. [shorter than X]
     """
     assert(len(int_mapped_docs) == len(doc_labels))
@@ -98,19 +99,21 @@ def pad_sort_data(int_mapped_docs, doc_labels):
     X_dict = {'X': X_exp_padded,  # Torch Tensor
               'lengths': sorted_lengths,  # list(int)
               'sorted_indices': sorted_indices,  # list(int)
-              'sorted_docrefs': sorted_doc_ref}  # list(int)
+              'sorted_docrefs': sorted_doc_ref,  # list(int)
+              'num_docs': int(doc_labels.size(0))}  # int
     return X_dict, doc_labels
 
 
 class Batcher():
-    """
-    Maintain batcher variables and state and such.
-    :param full_X: the full dataset. the int-mapped preprocessed datset.
-    :param full_y: the labels for the full dataset.
-    :param batch_size: the number of documents to have in a batch; so sentence
-        count varies.
-    """
-    def __init__(self, full_X, full_y, batch_size=None):
+    def __init__(self, full_X, full_y, batch_size=None, shuffle=True):
+        """
+        Maintain batcher variables and state and such.
+        :param full_X: the full dataset. the int-mapped preprocessed datset.
+        :param full_y: the labels for the full dataset.
+        :param batch_size: the number of documents to have in a batch; so sentence
+            count varies.
+        :param shuffle: boolean; shuffle passed data if True.
+        """
         self.full_len = len(full_X)
         self.batch_size = batch_size if batch_size != None else self.full_len
         assert(self.full_len == len(full_y))
@@ -118,16 +121,20 @@ class Batcher():
             self.num_batches = int(np.ceil(float(self.full_len)/self.batch_size))
         else:
             self.num_batches = 1
-        # Get random permutation of the indices but control for randomness.
-        # https://stackoverflow.com/a/19307027/3262406
-        rand_indices = range(self.full_len)
-        random.shuffle(rand_indices)
-        # Shuffle once when the class initialized and then keep it that way.
-        self.full_X = [full_X[i] for i in rand_indices]
-        self.full_y = [full_y[i] for i in rand_indices]
+        if shuffle:
+            # Get random permutation of the indices.
+            # https://stackoverflow.com/a/19307027/3262406
+            rand_indices = range(self.full_len)
+            random.shuffle(rand_indices)
+            # Shuffle once when the class initialized and then keep it that way.
+            self.full_X = [full_X[i] for i in rand_indices]
+            self.full_y = [full_y[i] for i in rand_indices]
+        else:
+            self.full_X = full_X
+            self.full_y = full_y
         # Get batch indices.
         self.batch_start = 0
-        self.batch_end = batch_size
+        self.batch_end = self.batch_size
 
     def next_batch(self):
         """
