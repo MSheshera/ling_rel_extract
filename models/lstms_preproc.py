@@ -1,5 +1,5 @@
 """
-Map all the tokens to integers and write token id maps.
+Code to pre-process text data and embeddings to be fed to the model.
 """
 from __future__ import unicode_literals
 from __future__ import print_function
@@ -7,26 +7,10 @@ import os, sys, argparse
 import codecs, json
 import time
 
+import utils
+
 # Write unicode to stdout.
 sys.stdout = codecs.getwriter('utf-8')(sys.stdout)
-
-
-def read_json(json_file):
-    """
-    Read per line JSON and yield.
-    :param json_file: Just a open file. file-like with a next method.
-    :return: yield one json object.
-    """
-    for json_line in json_file:
-        # Try to manually skip bad chars.
-        # https://stackoverflow.com/a/9295597/3262406
-        try:
-            f_dict = json.loads(json_line.replace('\r\n', '\\r\\n'),
-                                encoding='utf-8')
-            yield f_dict
-        # Skip case which crazy escape characters.
-        except ValueError:
-            yield {}
 
 
 def make_word2glove_dict(glove_dir):
@@ -75,7 +59,7 @@ def map_split_to_int(split_path, word2idx={}, update_map=True):
     start_time = time.time()
     with codecs.open(split_path, 'r', 'utf-8') as fp:
         print('Processing: {:s}'.format(split_path))
-        for data_json in read_json(fp):
+        for data_json in utils.read_json(fp):
             label = data_json['label']
             # Read the list of sbd sentences tokenized on white space.
             sents = data_json['text']
