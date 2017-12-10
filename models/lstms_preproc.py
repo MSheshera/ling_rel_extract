@@ -38,7 +38,7 @@ def make_word2glove_dict(glove_dir):
     print('Wrote: {:s}'.format(out_glove_file))
 
 
-def map_split_to_int(split_path, word2idx={}, update_map=True):
+def map_split_to_int(split_path, size_str, word2idx={}, update_map=True):
     """
     Convert text to set of int mapped tokens. Mapping words to integers at
     all times, train/dev/test.
@@ -66,6 +66,8 @@ def map_split_to_int(split_path, word2idx={}, update_map=True):
             num_docs += 1
             if num_docs % 100 == 0:
                 print('Processing {:d}th document'.format(num_docs))
+            # Make a small dataset if asked for.
+            if size_str == 'small' and num_docs % 1000 == 0:
                 break
             intmapped_sents = []  # list of lists.
             for sent in sents:
@@ -98,25 +100,26 @@ def map_split_to_int(split_path, word2idx={}, update_map=True):
     return X, y, word2idx
 
 
-def make_int_maps(in_path, out_path):
+def make_int_maps(in_path, out_path, size_str):
     """
     For each split map all the tokens to integers and create token int maps.
     :param in_path:
     :param out_path:
+    :param size_str: says if you want to make a small 1000 example set or full.
     :return:
     """
     splits = ['train', 'dev', 'test']
     word2idx = {}
     for split in splits:
         split_path = os.path.join(in_path, split) + '.json'
-        X, y, word2idx = map_split_to_int(split_path, word2idx=word2idx,
-                                          update_map=True)
-        intmapped_out_path = os.path.join(out_path, split) + '-im-small.json'
+        X, y, word2idx = map_split_to_int(split_path, size_str=size_str,
+                                          word2idx=word2idx, update_map=True)
+        intmapped_out_path = os.path.join(out_path, split) + '-im-{:s}.json'.format(size_str)
         with codecs.open(intmapped_out_path, 'w', 'utf-8') as fp:
             json.dump((X, y), fp)
         print('Wrote: {:s}'.format(intmapped_out_path))
     # Write the map.
-    intmap_out_path = os.path.join(out_path, 'word2idx-small') + '.json'
+    intmap_out_path = os.path.join(out_path, 'word2idx-{:s}.json'.format(size_str))
     with codecs.open(intmap_out_path, 'w', 'utf-8') as fp:
         json.dump(word2idx, fp)
     print('Wrote: {:s}'.format(intmap_out_path))
@@ -141,12 +144,17 @@ def main():
     make_int_map.add_argument(u'-i', u'--in_path', required=True,
                               help=u'Path to the processed train/dev/test '
                                    u'splits.')
+    make_int_map.add_argument(u'-s', u'--size', required=True,
+                              choices=['small', 'full'],
+                              help=u'Make a small version with 1000 examples or'
+                                   u'a large version with the whole dataset.')
     cl_args = parser.parse_args()
 
     if cl_args.subcommand == 'w2g_map':
         make_word2glove_dict(glove_dir=cl_args.glove_path)
     if cl_args.subcommand == 'int_map':
-        make_int_maps(in_path=cl_args.in_path, out_path=cl_args.in_path)
+        make_int_maps(in_path=cl_args.in_path, out_path=cl_args.in_path,
+                      size_str=cl_args.size)
 
 
 if __name__ == '__main__':
