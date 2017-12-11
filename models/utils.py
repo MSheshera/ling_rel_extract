@@ -4,6 +4,10 @@ General utilities; reading files and such.
 import os, sys
 import json
 
+# Use mpl on remote.
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
@@ -69,8 +73,34 @@ def restore_model(embedding_path, model_path, model_name, word2idx):
     return model
 
 
-def write_predictions(pred_file, y_true, y_pred):
-    with open(pred_file, 'w') as fp:
-        both = np.vstack([y_true, y_pred]).T  # write np.array(samples, 2)
-        np.save(fp, both)
-    print('Wrote: {}'.format(pred_file))
+def plot_train_hist(y_vals, checked_iters, fig_path, ylabel):
+    """
+    Plot y_vals against the number of iterations.
+    :param score: list
+    :param loss: list; len(score)==len(loss)
+    :param check_every: int
+    :param fig_path: string;
+    :return: None.
+    """
+    x_vals = np.array(checked_iters)
+    y_vals = np.vstack(y_vals)
+    plt.plot(x_vals, y_vals, '-', linewidth=2)
+    plt.xlabel('Training iteration')
+    plt.ylabel(ylabel)
+    plt.title('Evaluated every: {:d} iterations'.format(
+        checked_iters[1]-checked_iters[0]))
+    plt.tight_layout()
+    ylabel='_'.join(ylabel.lower().split())
+    fig_file = os.path.join(fig_path, '{:s}_history.eps'.format(ylabel))
+    plt.savefig(fig_file)
+    plt.savefig(os.path.join(fig_path, '{:s}_history.png'.format(ylabel)))
+    plt.clf()
+    print('Wrote: {:s}'.format(fig_file))
+
+
+if __name__ == '__main__':
+    if sys.argv[1] == 'test_plot_hist':
+        plot_train_hist([1,2,3,4], checked_iters=[100,200,300,400],
+                        fig_path=sys.argv[2], ylabel='test')
+    else:
+        sys.argv.write('Unknown argument.\n')
