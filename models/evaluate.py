@@ -106,7 +106,7 @@ def read_plot_cm(prediction_path):
     train_cm = metrics.confusion_matrix(train_preds[:, 0], train_preds[:, 1])
     utils.plot_confusion_matrix(dev_cm, class_labels, prediction_path,
                                 'Dev confusion matrix')
-    utils.plot_confusion_matrix(dev_cm, class_labels, prediction_path,
+    utils.plot_confusion_matrix(train_cm, class_labels, prediction_path,
                                 'Train confusion matrix')
 
 
