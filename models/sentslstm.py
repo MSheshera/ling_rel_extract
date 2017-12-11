@@ -2,11 +2,9 @@
 Define the model architecture and define forward and predict computations.
 """
 from __future__ import print_function
-import sys, os, math, time
 import numpy as np
 import torch
 from torch.autograd import Variable
-import torch.nn.functional as F
 
 import model_utils as mu
 
@@ -14,7 +12,7 @@ import model_utils as mu
 class SentsLSTM(torch.nn.Module):
     """
     Run an LSTM on each sentence of the passed paragraph, sum the sentence
-    representations and make a prediction.s
+    representations and make a prediction.
     """
     def __init__(self, word2idx, embedding_path, num_classes=6, num_layers=1,
                  embedding_dim=200, hidden_dim=50, dropout=0.3):
@@ -71,8 +69,10 @@ class SentsLSTM(torch.nn.Module):
         # Make the doc masks.
         doc_refs = np.array(doc_refs)
         doc_masks = np.zeros((num_docs, total_sents, self.hidden_dim))
+        # Changing the 1.0 to a value so I'm averaging over sentences always
+        # seemed to cause the model to not learn anything. Very strange.
         for ref in xrange(num_docs):
-            doc_masks[ref, doc_refs == ref, :] = 1
+            doc_masks[ref, doc_refs == ref, :] = 1.0
         doc_masks = torch.FloatTensor(doc_masks)
 
         # Make all model variables to Variables and move to the GPU.
@@ -118,9 +118,10 @@ class SentsLSTM(torch.nn.Module):
         c0 = torch.zeros(self.num_layers, total_sents, self.hidden_dim)
         # Make the doc masks.
         doc_refs = np.array(doc_refs)
+        assert(doc_refs.shape[0] == total_sents)
         doc_masks = np.zeros((num_docs, total_sents, self.hidden_dim))
         for ref in xrange(num_docs):
-            doc_masks[ref, doc_refs == ref, :] = 1
+            doc_masks[ref, doc_refs == ref, :] = 1.0
         doc_masks = torch.FloatTensor(doc_masks)
 
         # Make all model variables to Variables and move to the GPU.
