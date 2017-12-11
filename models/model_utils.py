@@ -49,6 +49,27 @@ def init_pretrained_glove(glove_path, word2idx, embedding_dim):
     return embed
 
 
+def batched_predict(model, batcher, batch_size, int_mapped_X, doc_labels):
+    """
+    Make predictions batch by batch. Dont do any funky shuffling shit.
+    :param model: the model object with a predict method.
+    :param batcher: reference to model_utils.Batcher class.
+    :param batch_size: int; number of docs to consider in a batch.
+    :param int_mapped_X: raw data read from disk.
+    :param doc_labels: labels; not used but current batching code needs this.
+    :return: preds: numpy array; predictions on int_mapped_X.
+    """
+    # Intialize batcher but dont shuffle.
+    train_batcher = batcher(full_X=int_mapped_X, full_y=doc_labels,
+                            batch_size=batch_size, shuffle=False)
+    preds = []
+    for batch_X, _ in train_batcher.next_batch():
+        batch_preds = model.predict(batch_X=batch_X)
+        preds.append(batch_preds)
+    preds = np.hstack(preds)
+    return preds
+
+
 def pad_sort_data(int_mapped_docs, doc_labels):
     """
     Pad the data and sort such that the sentences are sorted in descending order
@@ -105,6 +126,7 @@ def pad_sort_data(int_mapped_docs, doc_labels):
 
 
 class Batcher():
+    # TODO: Modify it so it works without true labels for pred time. --med-pri.
     def __init__(self, full_X, full_y, batch_size=None, shuffle=True):
         """
         Maintain batcher variables and state and such.
