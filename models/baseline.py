@@ -172,7 +172,7 @@ def load_baseline(vlstm_grec_path, model_path):
     start = time.time()
     best_clf = None
     best_score = 0
-    for cur_C in [100, 50, 10, 5, 1, 0.1, 0.01]:
+    for cur_C in [50, 10, 5]:
         clf = linear_model.LogisticRegression(
             penalty='l2', dual=False, tol=1e-4, C=cur_C, fit_intercept=True,
             intercept_scaling=1, solver='lbfgs', max_iter=100,
@@ -216,10 +216,13 @@ def load_baseline(vlstm_grec_path, model_path):
                     'date_of_birth', 'education-degree', 'no_relation']
     dev_cm = metrics.confusion_matrix(dev_y, dev_preds)
     train_cm = metrics.confusion_matrix(train_y, train_preds)
+    test_cm = metrics.confusion_matrix(test_y, test_preds)
+    utils.plot_confusion_matrix(test_cm, class_labels, model_path,
+                                'Test baseline confusion matrix (recall)')
     utils.plot_confusion_matrix(dev_cm, class_labels, model_path,
-                                'Dev confusion matrix-best')
+                                'Dev baseline confusion matrix (recall)')
     utils.plot_confusion_matrix(train_cm, class_labels, model_path,
-                                'Train confusion matrix-best')
+                                'Train baseline confusion matrix (recall)')
     print('best model')
     print(clf)
 
