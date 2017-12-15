@@ -100,18 +100,23 @@ def read_plot_cm(prediction_path):
         dev_preds = np.load(fp)
     with open(os.path.join(prediction_path, 'train_preds.npy')) as fp:
         train_preds = np.load(fp)
+    with open(os.path.join(prediction_path, 'test_preds.npy')) as fp:
+        test_preds = np.load(fp)
     class_labels= ['institution', 'place_of_birth', 'place_of_death',
                    'date_of_birth', 'education-degree', 'no_relation']
     dev_cm = metrics.confusion_matrix(dev_preds[:, 0], dev_preds[:, 1])
     train_cm = metrics.confusion_matrix(train_preds[:, 0], train_preds[:, 1])
+    test_cm = metrics.confusion_matrix(test_preds[:, 0], test_preds[:, 1])
+    utils.plot_confusion_matrix(test_cm, class_labels, prediction_path,
+                                'Test sLSTM confusion matrix (recall)')
     utils.plot_confusion_matrix(dev_cm, class_labels, prediction_path,
-                                'Dev confusion matrix')
+                                'Dev sLSTM confusion matrix (recall)')
     utils.plot_confusion_matrix(train_cm, class_labels, prediction_path,
-                                'Train confusion matrix')
+                                'Train sLSTM confusion matrix (recall)')
 
 
 if __name__ == '__main__':
     if sys.argv[1] == 'plot_cm':
         read_plot_cm(prediction_path=sys.argv[2])
     else:
-        sys.argv.write('Unknown argument.\n')
+        sys.stderr.write('Unknown argument.\n')

@@ -124,10 +124,10 @@ def plot_confusion_matrix(cm, classes, fig_path, title, normalize=True,
                  horizontalalignment="center",
                  color="white" if cm[i, j] > thresh else "black")
 
-    plt.tight_layout()
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
     title = '_'.join(title.lower().split())
+    plt.tight_layout()
     fig_file = os.path.join(fig_path, '{:s}.eps'.format(title))
     plt.savefig(fig_file)
     plt.savefig(os.path.join(fig_path, '{:s}.png'.format(title)))
