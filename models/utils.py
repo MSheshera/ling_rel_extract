@@ -168,7 +168,7 @@ def pick_best(runs_path, glob_pat):
         print('Train: F1: {:0.4f}; P: {:0.4f}; R: {:0.4f}; Acc: {:0.4f}'.format(trp['wf1'], trp['wp'], trp['wr'], trp['ac']))
         drp = best_run_info['dev_performance']
         print('Dev: F1: {:0.4f}; P: {:0.4f}; R: {:0.4f}; Acc: {:0.4f}'.format(drp['wf1'], drp['wp'], drp['wr'], drp['ac']))
-        terp = best_run_info['dev_performance']
+        terp = best_run_info['test_performance']
         print('Test: F1: {:0.4f}; P: {:0.4f}; R: {:0.4f}; Acc: {:0.4f}'.format(terp['wf1'], terp['wp'], terp['wr'], terp['ac']))
         modelp, trainp = best_run_info['model_hparams'], best_run_info['train_hparams']
         print(modelp)
