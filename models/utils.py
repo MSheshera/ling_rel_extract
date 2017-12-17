@@ -1,8 +1,11 @@
 """
 General utilities; reading files and such.
 """
-import os, sys
-import itertools, json
+from __future__ import unicode_literals
+from __future__ import print_function
+import os, sys, glob
+import itertools
+import codecs, json, pprint
 
 # Use mpl on remote.
 import matplotlib
@@ -13,6 +16,8 @@ import torch
 
 import sentslstm as slstm
 
+# Write unicode to stdout.
+sys.stdout = codecs.getwriter('utf-8')(sys.stdout)
 
 def read_json(json_file):
     """
@@ -134,9 +139,47 @@ def plot_confusion_matrix(cm, classes, fig_path, title, normalize=True,
     plt.clf()
     print('Wrote: {:s}'.format(fig_file))
 
+
+def pick_best(runs_path, glob_pat):
+    """
+    Given a prefix of the directories which were in the hyperparam optimization
+    read the scores and pick the best.
+    :param run_prefix: string;
+    :return:
+    """
+    dirs = glob.glob(os.path.join(runs_path, '{:s}*'.format(glob_pat)))
+    best_score = 0
+    best_path = dirs[0]
+    best_run_info = {}
+    for run_path in dirs:
+        with codecs.open(os.path.join(run_path, 'run_info.json'), 'r', 'utf-8') as fp:
+            run_info = json.load(fp)
+        dev_performance = run_info['dev_performance']
+        if dev_performance['wf1'] > best_score:
+            best_run_info = run_info
+            best_path = run_path
+            best_score = dev_performance['wf1']
+    # Print out the best model.
+    if best_run_info == {}:
+        print('Nothing to pick the best from. >_<')
+    else:
+        print('Best model: {:s}'.format(best_path))
+        trp = best_run_info['train_performance']
+        print('Train: F1: {:0.4f}; P: {:0.4f}; R: {:0.4f}; Acc: {:0.4f}'.format(trp['wf1'], trp['wp'], trp['wr'], trp['ac']))
+        drp = best_run_info['dev_performance']
+        print('Dev: F1: {:0.4f}; P: {:0.4f}; R: {:0.4f}; Acc: {:0.4f}'.format(drp['wf1'], drp['wp'], drp['wr'], drp['ac']))
+        terp = best_run_info['dev_performance']
+        print('Test: F1: {:0.4f}; P: {:0.4f}; R: {:0.4f}; Acc: {:0.4f}'.format(terp['wf1'], terp['wp'], terp['wr'], terp['ac']))
+        modelp, trainp = best_run_info['model_hparams'], best_run_info['train_hparams']
+        print(modelp)
+        print(trainp)
+        print()
+
 if __name__ == '__main__':
     if sys.argv[1] == 'test_plot_hist':
         plot_train_hist([1,2,3,4], checked_iters=[100,200,300,400],
                         fig_path=sys.argv[2], ylabel='test')
+    elif sys.argv[1] == 'pick_best':
+        pick_best(sys.argv[2], sys.argv[3])
     else:
         sys.argv.write('Unknown argument.\n')
