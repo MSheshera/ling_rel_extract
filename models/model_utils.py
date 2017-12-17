@@ -25,7 +25,8 @@ def init_pretrained_glove(glove_path, word2idx, embedding_dim):
     """
     vocab_size = len(word2idx)
     # read in the glove files
-    glove_file = os.path.join(glove_path, 'glove.6B.200d.json')
+    glove_file = os.path.join(glove_path, 'glove.6B.{:d}d.json'.
+                              format(embedding_dim))
     with open(glove_file, 'r') as fp:
         word2glove = json.load(fp)
     print('Read embeddings: {:s}'.format(glove_file))

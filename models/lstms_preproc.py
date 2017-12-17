@@ -13,14 +13,18 @@ import utils
 sys.stdout = codecs.getwriter('utf-8')(sys.stdout)
 
 
-def make_word2glove_dict(glove_dir):
+def make_word2glove_dict(glove_dir, embedding_dim):
     """
     Make a dict going from word to embeddings so its easy to read in later.
     :param glove_dir:
     :return:
     """
     word2glove = {}
-    glove_file = os.path.join(glove_dir, 'glove.6B.200d.txt')
+    glove_file = os.path.join(glove_dir, 'glove.6B.{:d}d.txt'.format(embedding_dim))
+    out_glove_file = os.path.join(glove_dir, 'glove.6B.{:d}d.json'.format(embedding_dim))
+    if os.path.isfile(out_glove_file):
+        sys.stderr.write('File exists; Look into it manually.\n')
+        sys.exit(1)
     print('Processing: {:s}'.format(glove_file))
     with codecs.open(glove_file, 'r', 'utf-8') as fp:
         for i, line in enumerate(fp):
@@ -32,7 +36,6 @@ def make_word2glove_dict(glove_dir):
             word2glove[word] = embeds
     print('w2g map length: {:d}'.format(len(word2glove)))
     # Save giant map to a pickle file.
-    out_glove_file = os.path.join(glove_dir, 'glove.6B.200d.json')
     with open(out_glove_file, 'w') as fp:
         json.dump(word2glove, fp)
     print('Wrote: {:s}'.format(out_glove_file))
@@ -139,6 +142,10 @@ def main():
     make_w2g.add_argument(u'-i', u'--glove_path',
                           required=True,
                           help=u'Path to the glove embeddings directory.')
+    make_w2g.add_argument(u'-e', u'--embedding_dim',
+                          required=True, type=int,
+                          choices=[50, 100, 200, 300],
+                          help=u'Path to the glove embeddings directory.')
     # Map sentences to list of int mapped tokens.
     make_int_map = subparsers.add_parser(u'int_map')
     make_int_map.add_argument(u'-i', u'--in_path', required=True,
@@ -151,7 +158,8 @@ def main():
     cl_args = parser.parse_args()
 
     if cl_args.subcommand == 'w2g_map':
-        make_word2glove_dict(glove_dir=cl_args.glove_path)
+        make_word2glove_dict(glove_dir=cl_args.glove_path,
+                             embedding_dim=cl_args.embedding_dim)
     if cl_args.subcommand == 'int_map':
         make_int_maps(in_path=cl_args.in_path, out_path=cl_args.in_path,
                       size_str=cl_args.size)
