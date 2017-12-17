@@ -17,7 +17,7 @@ def evaluate_preds(true_y, pred_y):
     Helper to compute eval metrics.
     :param true_y: numpy array; (num_samples, )
     :param pred_y: numpy array; (num_samples, )
-    :return: None.
+    :return: wf1, wp, wr, ac; floats
     """
     wf1 = metrics.f1_score(true_y, pred_y, average='weighted')
     wp = metrics.precision_score(true_y, pred_y, average='weighted')
@@ -29,6 +29,7 @@ def evaluate_preds(true_y, pred_y):
     print('Accuracy: {:.4f}'.format(ac))
     print(metrics.classification_report(y_true=true_y, y_pred=pred_y))
     print()
+    return wf1, wp, wr, ac
 
 
 def make_predictions(data, batcher, model, result_path,
