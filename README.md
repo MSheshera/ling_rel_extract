@@ -1,12 +1,13 @@
 ### Description:
 Neural networks for relation extraction.
 
-### Descriptions of contents:
-`pre_process/*`: 
+Report on findings of the project: http://bit.ly/2D8BfxV
 
-`misc_scripts/*`: Stuff that couldn't go anyplace else.
+### Descriptions of contents:
+`pre_process/*`: Code to pre-process the [Google Relation Extraction Corpus](https://research.googleblog.com/2013/04/50000-lessons-on-how-to-read-relation.html) to have entity links so it may be used for relation extraction.
+
+`models/*`: Baseline and simple LSTM models for paragraph level relation extraction.
 
 ### Running this code:
-Find the project on gypsum here: `/mnt/nfs/work1/mccallum/smysore/ling_rel_extract`
 
-Find a log of things I'm up to here: [Google Doc](https://docs.google.com/document/d/1ioJyp8JPePUOiSSb5pn04He0NHOgd-FNVTum17HXFB4/edit?usp=sharing)
+TODO.
